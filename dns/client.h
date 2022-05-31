@@ -56,3 +56,12 @@ typedef struct{
     unsigned short rlength;
     unsigned char *name;
 }__attribute__((packed)) dns_record_mx;
+
+typedef struct{
+ unsigned short name_offset;
+    unsigned short type;
+    unsigned short class;
+    unsigned int ttl;
+    unsigned short rlength;
+    unsigned char *name;
+}__attribute__((packed)) dns_record_cname;

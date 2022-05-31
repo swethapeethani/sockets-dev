@@ -14,6 +14,7 @@
 #define TYPE_MAIL_SERVER 0x000f
 #define TYPE_AAAA 0x001c
 #define TYPE_ANY 0x00ff
+#define TYPE_SOA 0x0006
 
 // #define QRFLAG 0x8000
 // #define STDQUERY 0x87FF
@@ -46,7 +47,7 @@ void main(int argc, char *argv[])
     dnshdr.qdcount = htons(1);
     dnshdr.ancount = 0;
     dnshdr.nscount = 0;
-    dnshdr.arcount = htons(1);
+    dnshdr.arcount = 0;//htons(1);
 
     //dnshdr.flags = htons(0x0100);
 
@@ -248,14 +249,23 @@ unsigned short type;
 memcpy(&type, field_len, sizeof(unsigned short));
 printf("Received type %x\n", ntohs(type));
 
-if(ntohs(type) == TYPE_ANY)
+//if(ntohs(type) == TYPE_ANY )
 {
     //unsigned short rec_type;
     memcpy(&type, field_len+6, sizeof(unsigned short));
+    printf(" type is %x\n", ntohs(type));
 }
 
 for(int i = 0; i < ntohs(responsehdr->ancount); i++)
 {
+    if(i>0)
+    {
+        memcpy(&type, field_len+6, sizeof(unsigned short));
+        
+        field_len += 4;
+        printf(" i >0 type is %x and val at field_len is %x\n", ntohs(type), ntohs(*field_len));
+
+    }
     if(ntohs(type) == TYPE_A )
     {
         dns_record_a *a_records = (dns_record_a *)(field_len + 4);
@@ -272,6 +282,34 @@ for(int i = 0; i < ntohs(responsehdr->ancount); i++)
             //inet_ntoa()
         field_len += sizeof(dns_record_a);
         }
+    }
+    else if(ntohs(type) == TYPE_CNAME)
+    {
+        printf(" CNAME\n");
+        dns_record_cname *cname_rec = (dns_record_cname *)(field_len + 4);
+
+        printf("Type: %"PRId16 "\n", ntohs(cname_rec->type));
+            printf("Class: %d \n", ntohs(cname_rec->class));
+            printf("TTL: %d sec\n", ntohl(cname_rec->ttl));
+            printf("Len of RR specific data in octets %d\n", ntohs(cname_rec->rlength));
+           // printf("IPv4:  %08" PRIx32 "\n", ntohl(*(uint32_t *)&a_records->addr));
+            //printf("IPv4: %s \n", inet_ntoa(a_records->addr));
+            //inet_ntoa()
+            cname_rec->name = &cname_rec->rlength + 2;
+            char *cname = calloc(ntohs(cname_rec->rlength) +1 , sizeof(unsigned char));
+            strncpy(cname,&cname_rec->rlength+2, ntohs(cname_rec->rlength));
+            cname[ntohs(cname_rec->rlength)] = '\0';
+            printf(" cname addr is %ld, and len is %s\n", cname, (cname));
+            field_len += sizeof(dns_record_cname) - 4;
+            for(int i=0; i<ntohs(cname_rec->rlength); i++)
+            {
+                printf("%c", *field_len);
+                ++field_len;
+            }
+            printf("\n");
+            //printf("cname is %s \n", *cname);
+        //field_len += sizeof(dns_record_cname) + ntohs(cname_rec->rlength) -2  ;
+
     }
     else if(ntohs(type) == TYPE_MAIL_SERVER)
     {
@@ -308,7 +346,7 @@ for(int i = 0; i < ntohs(responsehdr->ancount); i++)
     else if(ntohs(type) == TYPE_AAAA)
     {
         dns_record_aaaa *aaaa_rec = (dns_record_aaaa *)(field_len + 4);
-        printf("AAAA Record\n");
+        printf("AAAA Record an its size is %d IPV6 addrlen %d\n", sizeof(dns_record_aaaa), INET6_ADDRSTRLEN);
             //printf("Type: %"PRId16 "\n", ntohs(aaaa_rec->type));
             printf("Class: %d \n", ntohs(aaaa_rec->class));
             printf("TTL: %d sec\n", ntohl(aaaa_rec->ttl));
@@ -317,7 +355,7 @@ for(int i = 0; i < ntohs(responsehdr->ancount); i++)
             char addr_ipv6[INET6_ADDRSTRLEN];
             //printf("IPv4:  %08" PRIx32 "\n", ntohl(*(uint32_t *)&aaaa_rec->addr));
             printf("IPv6: %s \n", inet_ntop(AF_INET6,&aaaa_rec->addr,addr_ipv6, INET6_ADDRSTRLEN));
-            field_len += sizeof(dns_record_aaaa);
+            field_len += sizeof(dns_record_aaaa) + 1;
             
     }
 }
